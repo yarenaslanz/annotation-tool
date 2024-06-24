@@ -1,0 +1,619 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Annotation Tool</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body id="main-body">
+
+    <div id="upload-container">
+        <form id="upload-form" enctype="multipart/form-data">
+            <label for="video-file" class="custom-file-upload" id="dosya-sec">Upload Video File</label>
+            <input type="file" id="video-file" accept="video/*" name="file" onchange="uploadVideo(this)">
+        </form>
+
+
+        <div id="tag-input-container" style="display: none;">
+            <input type="text" id="tag-input" placeholder="Enter tags (comma-separated)">
+            <button class="button-name" onclick="addTags()">Save Labels</button>
+            
+        </div>
+
+        <div id="format-select" style="display:none;">
+            <div class="radio-inputs">
+                <label class="radio">
+                    <input type="radio" name="format" value="json" onclick="selectFormat('json')" checked>
+                    <span class="name">JSON Format</span>
+                </label>
+                <label class="radio">
+                    <input type="radio" name="format" value="xml" onclick="selectFormat('xml')">
+                    <span class="name">XML Format</span>
+                </label>
+                <label class="radio">
+                    <input type="radio" name="format" value="pytorch" onclick="selectFormat('pytorch')">
+                    <span class="name">PyTorch Format</span>
+                </label>
+            </div>
+
+            <div id="tag-select" style="display: none;">
+                <select id="tag-dropdown">
+                    <option value="" selected disabled>Select Tag</option>
+                </select>
+            </div>
+
+            <div id="save-button-container">
+                <button id="save-annotation" class="button-name" onclick="saveAnnotation()">Save The Annotation</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="container-wrapper">
+        <div id="video-container" style="display:none;">
+            <video id="uploaded-video" controls preload="auto"></video>
+            
+        </div>
+
+
+        <div id="annotation-container">
+            <canvas id="annotation-canvas"></canvas>
+
+            <div id="drawing-controls">
+                <button onclick="setDrawingMode('box')" class="button-name gg-shape-square"></button>
+                <button onclick="clearDrawing()" class="button-name gg-erase"></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="clipping-controls" style="display:none;">
+        <input type="range" id="start-slider" min="0" max="100" value="0">
+        <br>
+        <input type="range" id="end-slider" min="0" max="100" value="100">
+        <br>
+        <span id="selected-range">0s - 100s</span> / <span id="max-duration">0s</span>
+        <br>
+        <button role="button" class="button-name" onclick="clipVideo()">Clip Video</button>
+        <button role="button" class="button-name" onclick="showOriginalVideo()">Show Original Video</button>
+        <button role="button" class="button-name" onclick="annotateFrame()">Annotate Frame</button>
+
+        <div id="blur-detection" style="display: none;">
+            <p id="blur-status"></p>
+            <p id="variance-display"></p>
+        </div>
+    </div>
+
+    <div class="dropdown">
+        <div id="tagDropdown" class="dropdown-content">
+        </div>
+    </div>
+
+    <script>
+        var imageCounter = 1;
+        var originalVideoURL = '';
+        var videoElement = document.getElementById('uploaded-video');
+        var annotationCanvas = document.getElementById('annotation-canvas');
+        var annotationContainer = document.getElementById('annotation-container');
+        var containerWrapper = document.getElementById('container-wrapper');
+        var drawingMode = 'box'; //default drawing mode
+        var startX, startY, endX, endY;
+        var videoImage = null; //store video frame as an image
+        var boxCoordinates = null; //store box coordinates
+        var tags = []; //store tags
+        var tagsFilePath = ''; //path of labels.txt
+        var tagIdMap = {}; //store tag IDs
+        var annotationsData = {
+            "info": {
+                "description": "my-project-name"
+            },
+            "images": [],
+            "annotations": [],
+            "categories": []
+        };
+
+        // Slider controls
+        var startSlider = document.getElementById("start-slider");
+        var endSlider = document.getElementById("end-slider");
+        var selectedRange = document.getElementById("selected-range");
+
+        // Update selected range display when sliders are moved
+        startSlider.addEventListener("input", updateSelectedRange);
+        endSlider.addEventListener("input", updateSelectedRange);
+
+        function updateSelectedRange() {
+            selectedRange.textContent = `${startSlider.value}s - ${endSlider.value}s`;
+        }
+
+
+        function addTags() {
+            // Reset the tagIdMap
+            tagIdMap = {};
+            var currentCategoryId = 0; //category ID
+
+            //add to the tag dropdown
+            var tagInput = document.getElementById('tag-input').value;
+            tags = tagInput.split(',').map(tag => tag.trim());
+
+            // Populate tag dropdown
+            var tagDropdown = document.getElementById('tag-dropdown');
+            tagDropdown.innerHTML = '<option value="" selected disabled>Select Tag</option>';
+            tags.forEach((tag, index) => {
+                var option = document.createElement('option');
+                option.text = tag;
+                tagDropdown.add(option);
+                tagIdMap[tag] = index; // Assign ID to tag
+            });
+
+            // Update category IDs
+            var categories = tags.map((tag, index) => ({
+                id: index,
+                name: tag
+            }));
+
+            //annotationsData
+            annotationsData.categories = categories;
+
+            document.getElementById('tag-select').style.display = 'block';
+
+            document.getElementById('save-annotation').style.display = 'inline-block';
+        }
+
+
+
+        function saveTagsToFile() {
+            var format = document.querySelector('input[name="format"]:checked').value;
+            if (format !== 'json') {
+                var tagsContent = tags.join('\n');
+                var blob = new Blob([tagsContent], { type: 'text/plain' });
+                var labelsLink = document.createElement('a');
+                labelsLink.href = URL.createObjectURL(blob);
+                labelsLink.download = 'labels.txt';
+                labelsLink.click();
+                tagsFilePath = labelsLink.href; //path of labels.txt
+            }
+        }
+
+
+        document.getElementById('save-annotation').addEventListener('click', function () {
+            saveTagsToFile();
+        });
+
+
+        function uploadVideo(input) {
+            var file = input.files[0];
+            if (!file) {
+                alert("Please select a file to upload.");
+                return;
+            }
+
+            var formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => {
+                    if (response.ok) {
+                        return response.text();
+                    } else {
+                        throw new Error('Failed to upload video.');
+                    }
+                })
+                .then(filename => {
+                    document.getElementById('video-container').style.display = 'block';
+                    document.getElementById('clipping-controls').style.display = 'block';
+                    containerWrapper.style.justifyContent = 'space-between';
+
+                    // Fetch video duration
+                    var video = document.getElementById('uploaded-video');
+                    video.onloadedmetadata = function () {
+                        var duration = Math.round(video.duration);
+                        var maxSliderValue = Math.floor(duration);
+                        document.getElementById('start-slider').max = maxSliderValue;
+                        document.getElementById('end-slider').max = maxSliderValue;
+                        document.getElementById('max-duration').textContent = duration + 's';
+                    };
+                    video.src = URL.createObjectURL(file);
+                    originalVideoURL = video.src;
+                    // Call addTags to populate the dropdown with tags
+                    addTags();
+                })
+                .catch(error => {
+                    alert(error.message);
+                });
+        }
+
+        function clipVideo() {
+            var start = startSlider.value;
+            var end = endSlider.value;
+            var file = document.getElementById('video-file').files[0];
+
+            if (!file) {
+                alert("Please upload a video file.");
+                return;
+            }
+
+            var formData = new FormData();
+            formData.append('file', file);
+            formData.append('start_time', start);
+            formData.append('end_time', end);
+
+            fetch('/clip', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => {
+                    if (response.ok) {
+                        return response.blob();
+                    } else {
+                        throw new Error('Failed to clip video.');
+                    }
+                })
+                .then(blob => {
+                    var url = URL.createObjectURL(blob);
+                    var video = document.getElementById('uploaded-video');
+                    video.src = url;
+                    video.currentTime = 0;
+                    video.play();
+                })
+                .catch(error => {
+                    alert(error.message);
+                });
+        }
+
+        function showOriginalVideo() {
+            var video = document.getElementById('uploaded-video');
+            video.src = originalVideoURL;
+            video.currentTime = 0;
+            video.play();
+        }
+
+        function detectBlur() {
+            var videoElement = document.getElementById('uploaded-video');
+            var canvas = document.getElementById('annotation-canvas');
+            var context = canvas.getContext('2d');
+            context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+            var imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            var data = imageData.data;
+            var { blur, variance } = calculateBlur(data, canvas.width, canvas.height);
+
+            //Display blur and variance
+            var blurStatus = document.getElementById('blur-status');
+            blurStatus.textContent = 'Frame is blur: ' + (blur ? 'Yes' : 'No');
+
+            var varianceDisplay = document.getElementById('variance-display');
+            varianceDisplay.textContent = 'Variance: ' + variance.toFixed(2);
+
+            document.getElementById('blur-detection').style.display = 'block';
+        }
+
+        //Laplacian method
+        function calculateBlur(data, width, height) {
+            var gray = [];
+            for (var i = 0; i < data.length; i += 4) {
+                var avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                gray.push(avg);
+            }
+
+            //Laplacian
+            var laplacian = [];
+            for (var y = 0; y < height; y++) {
+                for (var x = 0; x < width; x++) {
+                    var i = y * width + x;
+                    var value = -4 * gray[i];
+                    if (x > 0) value += gray[i - 1];
+                    if (x < width - 1) value += gray[i + 1];
+                    if (y > 0) value += gray[i - width];
+                    if (y < height - 1) value += gray[i + width];
+                    laplacian.push(value);
+                }
+            }
+            var mean = laplacian.reduce((sum, val) => sum + val, 0) / laplacian.length;
+            var variance = laplacian.reduce((sum, val) => sum + (val - mean) ** 2, 0) / laplacian.length;
+
+            var blur = variance < 100;
+            return { blur, variance };
+        }
+
+        // Event listener for detecting blur when the video is paused
+        var videoElement = document.getElementById('uploaded-video');
+        videoElement.addEventListener('pause', detectBlur);
+
+
+        function annotateFrame() {
+            annotationContainer.style.display = 'block';
+            var canvas = document.createElement('canvas');
+            var context = canvas.getContext('2d');
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+            videoImage = new Image();
+            videoImage.src = canvas.toDataURL(); // Store video frame as an image
+
+            annotationCanvas.width = canvas.width;
+            annotationCanvas.height = canvas.height;
+
+            var annotationContext = annotationCanvas.getContext('2d');
+            annotationContext.drawImage(videoImage, 0, 0, annotationCanvas.width, annotationCanvas.height);
+
+            // Show format selection dropdown
+            document.getElementById('format-select').style.display = 'block';
+            // Show tag input field
+            document.getElementById('tag-input-container').style.display = 'block';
+            // Show save annotation button
+            document.getElementById('save-annotation').style.display = 'inline-block';
+        }
+
+
+        function setDrawingMode(mode) {
+            drawingMode = mode;
+            clearAnnotationCanvas();
+        }
+
+        function clearAnnotationCanvas() {
+            var ctx = annotationCanvas.getContext('2d');
+            ctx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+            if (videoImage) {
+                ctx.drawImage(videoImage, 0, 0, annotationCanvas.width, annotationCanvas.height);
+            }
+        }
+
+        function clearDrawing() {
+            clearAnnotationCanvas();
+            startX = null;
+            startY = null;
+            endX = null;
+            endY = null;
+            boxCoordinates = null;
+        }
+
+        annotationCanvas.addEventListener('mousedown', function (event) {
+            startX = event.offsetX;
+            startY = event.offsetY;
+        });
+
+        annotationCanvas.addEventListener('mousemove', function
+            (event) {
+            if (startX != null && startY != null) {
+                endX = event.offsetX;
+                endY = event.offsetY;
+                drawShape();
+            }
+        });
+
+        annotationCanvas.addEventListener('mouseup', function (event) {
+            drawShape();
+            startX = null;
+            startY = null;
+            endX = null;
+            endY = null;
+        });
+
+        function drawShape() {
+            if (startX != null && startY != null && endX != null && endY != null) {
+                var ctx = annotationCanvas.getContext('2d');
+                var width = Math.abs(endX - startX);
+                var height = Math.abs(endY - startY);
+                var minX = Math.min(startX, endX);
+                var minY = Math.min(startY, endY);
+                ctx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+                ctx.drawImage(videoImage, 0, 0, annotationCanvas.width, annotationCanvas.height);
+                ctx.beginPath();
+                ctx.rect(minX, minY, width, height);
+                ctx.stroke();
+
+                // Update box coordinates
+                boxCoordinates = [minX, minY, minX + width, minY + height];
+            }
+        }
+
+        function selectFormat(format) {
+            console.log("Selected format:", format);
+            document.querySelector('#drawing-controls .gg-shape-square').style.display = 'inline-block';
+        }
+
+        function saveAnnotation() {
+            if (boxCoordinates) {
+                var selectedTag = document.getElementById('tag-dropdown').value;
+                if (!selectedTag) {
+                    alert("Please select a tag.");
+                    return;
+                }
+
+                var format = document.querySelector('input[name="format"]:checked').value;
+                var size = [annotationCanvas.width, annotationCanvas.height];
+                var imageName = "image" + pad(imageCounter, 4) + ".jpg";
+
+                var coordinates;
+                switch (format) {
+                    case 'json':
+                        var annotation = convertToJSON(size, boxCoordinates, selectedTag, imageName);
+                        annotationsData.images = annotation.images;
+                        var existingAnnotationIndex = annotationsData.annotations.findIndex(anno => anno.id === annotation.annotations[0].id);
+                        if (existingAnnotationIndex !== -1) {
+                            annotationsData.annotations[existingAnnotationIndex] = annotation.annotations[0];
+                        } else {
+                            annotationsData.annotations.push(annotation.annotations[0]);
+                        }
+
+                        var category = {
+                            "id": tags.length,
+                            "name": selectedTag
+                        };
+                        var existingCategoryIndex = annotationsData.categories.findIndex(cat => cat.name === category.name);
+                        if (existingCategoryIndex === -1) {
+                            annotationsData.categories.push(category);
+                        }
+
+                        saveToFile('annotations.json', JSON.stringify(annotationsData));
+                        saveRawImage(imageName);
+                        break;
+                    case 'xml':
+                        coordinates = convertToXML(size, boxCoordinates, imageName); 
+                        saveToFile(imageName.replace('.jpg', '.xml'), coordinates); 
+                        saveRawImage(imageName, annotationCanvas.toDataURL());
+                        break;
+                    case 'pytorch':
+                        coordinates = convertToPyTorch(size, boxCoordinates, selectedTag, imageName);
+                        break;
+                }
+
+                imageCounter++;
+            } else {
+                alert("No annotation to save.");
+            }
+        }
+
+
+
+
+
+        //pad a number
+        function pad(num, size) {
+            var s = num + "";
+            while (s.length < size) s = "0" + s;
+            return s;
+        }
+
+        function convertToJSON(size, box, selectedTag, imageName) {
+            var dw = size[0];
+            var dh = size[1];
+            var x_min = box[0];
+            var y_min = box[1];
+            var x_max = box[2];
+            var y_max = box[3];
+            var bboxWidth = x_max - x_min;
+            var bboxHeight = y_max - y_min;
+
+            var area = bboxWidth * bboxHeight;
+
+            var segmentation = [x_min, y_min, x_max, y_min, x_max, y_max, x_min, y_max];
+
+            // Find the selected tag
+            var categoryIndex = tags.indexOf(selectedTag);
+
+            var annotation = {
+                "id": imageCounter,
+                "iscrowd": 0,
+                "image_id": imageCounter,
+                "category_id": categoryIndex, 
+                "segmentation": [segmentation],
+                "bbox": [x_min, y_min, bboxWidth, bboxHeight],
+                "area": area
+            };
+
+            var image = {
+                "id": imageCounter,
+                "width": dw,
+                "height": dh,
+                "file_name": imageName
+            };
+
+            //Push new image to the existing images array
+            annotationsData.images.push(image);
+
+            return {
+                "images": annotationsData.images,
+                "annotations": [annotation],
+                "categories": annotationsData.categories
+            };
+        }
+
+
+        function convertToXML(size, box) {
+            var dw = size[0];
+            var dh = size[1];
+            var x_min = box[0];
+            var y_min = box[1];
+            var x_max = box[2];
+            var y_max = box[3];
+
+            var xmlContent = `
+<annotation>
+            <folder>PASCAL VOC</folder>
+            <filename>image${pad(imageCounter, 4)}.jpg</filename>
+            <source>
+                <database>annotation</database>
+            </source>
+            <size>
+                <width>${dw}</width>
+                <height>${dh}</height>
+                <depth>3</depth>
+            </size>
+            <segmented>0</segmented>
+            <object>
+                <bndbox>
+                    <xmin>${x_min}</xmin>
+                    <ymin>${y_min}</ymin>
+                    <xmax>${x_max}</xmax>
+                    <ymax>${y_max}</ymax>
+                </bndbox>
+            </object>
+</annotation>`;
+            return xmlContent;
+        }
+
+        function convertToPyTorch(size, box, selectedTag, imageName) {
+            var imgWidth = size[0];
+            var imgHeight = size[1];
+            var x_min = box[0];
+            var y_min = box[1];
+            var x_max = box[2];
+            var y_max = box[3];
+
+            // Get tag ID
+            var tagId = tagIdMap[selectedTag];
+
+            //coordinates
+            var center_x = (x_min + x_max) / 2.0 / imgWidth;
+            var center_y = (y_min + y_max) / 2.0 / imgHeight;
+            var width = (x_max - x_min) / imgWidth;
+            var height = (y_max - y_min) / imgHeight;
+
+            var pyTorchFormat = [tagId, center_x, center_y, width, height].join(' ');
+
+            var imageNameWithoutExtension = imageName.split('.')[0];
+            saveToFile(imageNameWithoutExtension + '.txt', pyTorchFormat); // Save annotation
+
+            saveRawImage(imageName, annotationCanvas.toDataURL());
+        }
+
+        function saveRawImage(filename) {
+            var tempCanvas = document.createElement('canvas');
+            var ctx = tempCanvas.getContext('2d');
+            tempCanvas.width = videoElement.videoWidth;
+            tempCanvas.height = videoElement.videoHeight;
+            ctx.drawImage(videoElement, 0, 0, tempCanvas.width, tempCanvas.height);
+
+            var dataUrl = tempCanvas.toDataURL();
+            var link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = filename;
+            link.click();
+        }
+
+        function saveToFile(filename, content) {
+            var blob = new Blob([content], { type: 'text/plain' });
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+        }
+
+        // Convert data URI to Blob
+        function dataURItoBlob(dataURI) {
+            var byteString = atob(dataURI.split(',')[1]);
+            var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+            var ab = new ArrayBuffer(byteString.length);
+            var ia = new Uint8Array(ab);
+            for (var i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            return new Blob([ab], { type: mimeString });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,420 @@
+﻿<style >
+
+body#main-body, html {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh; 
+    width: 100vw; 
+    overflow-x: hidden;
+}
+
+
+body#main-body {
+    background-image: url('background.jpg'); 
+    background-size: cover; 
+    background-position: center;
+}
+
+#upload-form {
+    margin-bottom: 200px;
+    margin-right: 1000px;
+}
+
+#container-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    max-width: 100%;
+}
+
+#video-container,
+#annotation-container {
+    width: 49%;
+    position: relative; 
+}
+
+#video-container {
+    order: 1;
+}
+
+#annotation-container {
+    order: 3;
+}
+
+#clipping-controls {
+    width: 100%;
+    text-align: left;
+    margin-top: 20px;
+    order: 2;
+}
+
+h1 {
+    margin-top: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #45a049;
+}
+
+input[type="range"] {
+    width: 80%;
+    margin-bottom: 10px;
+}
+
+#start-slider,
+#end-slider {
+    margin-right: 35%;
+}
+
+button {
+    padding: 10px 20px;
+    border: none;
+    background-color: #4CAF50;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+    button:hover {
+        background-color: #45a049;
+    }
+
+.custom-file-upload {
+    border: 2px solid #ccc;
+    display: inline-block;
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: #fff;
+    color: #333;
+    border-radius: 5px;
+}
+
+#video-file {
+    display: none;
+}
+
+#dosya-sec {
+    margin-top: 15px;
+    margin-right: 1000px;
+}
+
+#video-container video {
+    width: 100%;
+    height: auto;
+}
+
+#annotation-container {
+    display: none;
+    position: relative;
+}
+
+#upload-container {
+    display: flex;
+    justify-content: space-between; 
+    align-items: center; 
+}
+
+#tag-input-container {
+    display: flex; 
+    position: absolute; 
+    top: 20px; 
+    right: 0; 
+    margin-top: 150px; 
+}
+
+
+#tag-input {
+    width: 300px; 
+    height: 40px;
+    margin-right: 10px; 
+}
+
+#annotation-canvas {
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    width: 100%;
+    height: auto;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+#drawing-controls {
+    position: absolute;
+    top: 25px;
+    right: 25px; 
+}
+
+    #drawing-controls button {
+        margin-right: 5px;
+    }
+
+
+#format-select {
+    margin-bottom: 20px;
+    position: absolute;
+    top: 20px;
+    right: 20px; 
+}
+
+
+.gg-erase,
+.gg-shape-circle,
+.gg-shape-square,
+.gg-software-download {
+    box-sizing: border-box;
+    position: relative;
+    display: inline-block;
+    transform: scale(var(--ggs,1));
+    width: 50px;
+    height: 50px;
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    margin-right: 5px;
+}
+
+    .gg-erase::after,
+    .gg-erase::before,
+    .gg-shape-circle::after,
+    .gg-shape-square::after,
+    .gg-software-download::after {
+        content: "";
+        display: block;
+        box-sizing: border-box;
+        position: absolute;
+    }
+
+    .gg-erase::before {
+        width: 18px;
+        height: 25px;
+        border-bottom: 4px solid transparent;
+        border-radius: 1px;
+        box-shadow: 0 0 0 2px, inset 0 -2px 0 0;
+        left: 7px;
+        top: 2px;
+        transform: rotate(45deg);
+    }
+
+    .gg-erase::after {
+        background: currentColor;
+        width: 22px;
+        height: 2px;
+        bottom: 0;
+        border-radius: 20px;
+    }
+
+    .gg-shape-circle::after {
+        width: 18px;
+        height: 25px;
+        border: 3px solid;
+        border-radius: 100px;
+    }
+
+    .gg-shape-square::after {
+        width: 18px;
+        height: 25px;
+        border: 3px solid;
+    }
+
+    .gg-software-download::after {
+        width: 16px;
+        height: 6px;
+        border: 2px solid;
+        border-top: 0;
+        border-bottom-left-radius: 2px;
+        border-bottom-right-radius: 2px;
+        margin-top: 8px;
+    }
+
+    .gg-software-download::before {
+        content: "";
+        display: block;
+        box-sizing: border-box;
+        position: absolute;
+        border-radius: 3px;
+        width: 2px;
+        height: 10px;
+        background: currentColor;
+        left: 5px;
+        bottom: 5px;
+    }
+
+.dropbtn {
+    background-color: #3498DB;
+    color: white;
+    padding: 16px;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+}
+
+    
+    .dropbtn:hover,
+    .dropbtn:focus {
+        background-color: #2980B9;
+    }
+
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f1f1f1;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+    z-index: 1;
+}
+
+
+    .dropdown-content a {
+        color: black;
+        padding: 12px 16px;
+        text-decoration: none;
+        display: block;
+    }
+
+
+        .dropdown-content a:hover {
+            background-color: #ddd;
+        }
+
+
+.show {
+    display: block;
+}
+
+
+.select-container {
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.select-styled {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    display: inline-block;
+}
+
+.select-options {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+    z-index: 1;
+}
+
+.select-option {
+    padding: 12px 16px;
+    display: block;
+    cursor: pointer;
+}
+
+    .select-option:hover {
+        background-color: #ddd;
+    }
+
+/* Button Styles */
+.button-name {
+    align-items: center;
+    appearance: none;
+    background-color: #FCFCFD;
+    border-radius: 4px;
+    border-width: 0;
+    box-shadow: rgba(45, 35, 66, 0.2) 0 2px 4px, rgba(45, 35, 66, 0.15) 0 7px 13px -3px, #D6D6E7 0 -3px 0 inset;
+    box-sizing: border-box;
+    color: #36395A;
+    cursor: pointer;
+    display: inline-flex;
+    font-family: "JetBrains Mono", monospace;
+    height: 48px;
+    justify-content: center;
+    line-height: 1;
+    list-style: none;
+    overflow: hidden;
+    padding-left: 16px;
+    padding-right: 16px;
+    position: relative;
+    text-align: left;
+    text-decoration: none;
+    transition: box-shadow 0.15s, transform 0.15s;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    white-space: nowrap;
+    will-change: box-shadow, transform;
+    font-size: 18px;
+}
+
+    .button-name:focus {
+        box-shadow: #D6D6E7 0 0 0 1.5px inset, rgba(45, 35, 66, 0.4) 0 2px 4px, rgba(45, 35, 66, 0.3) 0 7px 13px -3px, #D6D6E7 0 -3px 0 inset;
+    }
+
+    .button-name:hover {
+        box-shadow: rgba(45, 35, 66, 0.3) 0 4px 8px, rgba(45, 35, 66, 0.2) 0 7px 13px -3px, #D6D6E7 0 -3px 0 inset;
+        transform: translateY(-2px);
+    }
+
+    .button-name:active {
+        box-shadow: #D6D6E7 0 3px 7px inset;
+        transform: translateY(2px);
+    }
+
+.radio-inputs {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    border-radius: 0.5rem;
+    background-color: #EEE;
+    box-sizing: border-box;
+    box-shadow: 0 0 0px 1px rgba(0, 0, 0, 0.06);
+    padding: 0.25rem;
+    width: 300px;
+    font-size: 14px;
+    margin-top: 1px;
+    margin-right: 20px;
+}
+
+    .radio-inputs .radio {
+        flex: 1 1 auto;
+        text-align: center;
+    }
+
+        .radio-inputs .radio input {
+            display: none;
+        }
+
+        .radio-inputs .radio .name {
+            display: flex;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.5rem;
+            border: none;
+            padding: 0.5rem 0;
+            color: rgba(51, 65, 85, 1);
+            transition: all 0.15s ease-in-out;
+        }
+
+        .radio-inputs .radio input:checked + .name {
+            background-color: #fff;
+            font-weight: 600;
+        }
+
+</style >
